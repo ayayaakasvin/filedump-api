@@ -1,0 +1,28 @@
+http_server:
+  address: localhost:8080
+  timeout: 20m
+  iddle_timeout: 5m
+  tls:
+    certfile: "./private/docker.pem"
+    keyfile: "./private/docker-key.pem"
+  max_file_size: 104857600
+  cors:
+    allowed_origins: 
+      - "*"
+    allowed_methods: 
+      - "*"
+    allowed_headers: 
+      - "*"
+
+database:
+  host: "localhost"
+  port: 5432
+  databaseName: "cloudservice"
+  user: "manager"
+  password: "gayge"
+
+redis:
+  host: "localhost"
+  port: "8081"
+  user: "valkeymanager"
+  password: "redisforcloud"

@@ -1,0 +1,40 @@
+http_server:
+  address: "0.0.0.0:8080"
+  timeout: 20m
+  iddle_timeout: 5m
+  tls:
+    certfile: "./private/docker.pem"
+    keyfile: "./private/docker-key.pem"
+  max_file_size: 104857600
+  cors:
+    allowed_origins: 
+      - "https://192.168.1.169"
+    allowed_methods: 
+      - "GET"
+      - "POST"
+      - "PUT"
+      - "DELETE"
+      - "PATCH"
+      - "OPTIONS"
+    allowed_headers: 
+      - "Content-Type"
+      - "Authorization"
+      - "Cache-Control"
+      - "Pragma"
+      - "Accept"
+      - "User-Agent"
+      - "Origin"
+      - "Referer"
+
+database:
+  host: "db"
+  port: 5432
+  databaseName: "cloudservice"
+  user: "manager"
+  password: "gayge"
+
+redis:
+  host: "cache"
+  port: "8090"
+  user: "valkeymanager"
+  password: "redisforcloud"
