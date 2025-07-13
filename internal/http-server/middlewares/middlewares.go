@@ -12,7 +12,7 @@ type Middlewares struct {
 	cache  models.Cache
 	logger *logrus.Logger
 
-	allowed_origins string
+	allowed_origins []string
 	allowed_headers string
 	allowed_methods string
 }
@@ -22,7 +22,7 @@ func NewHTTPMiddlewares(logger *logrus.Logger, cache models.Cache, cfg config.CO
 		logger: logger,
 		cache:  cache,
 
-		allowed_origins: strings.Join(cfg.AllowedOrigins, ", "),
+		allowed_origins: cfg.AllowedOrigins,
 		allowed_headers: strings.Join(cfg.AllowedHeaders, ", "),
 		allowed_methods: strings.Join(cfg.AllowedMethods, ", "),
 	}
