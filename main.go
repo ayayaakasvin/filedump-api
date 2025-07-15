@@ -12,8 +12,6 @@ import (
 	"up-down-server/internal/repository/cache"
 	"up-down-server/internal/repository/postgresql"
 
-	_ "up-down-server/docs"
-
 	"github.com/sirupsen/logrus"
 )
 

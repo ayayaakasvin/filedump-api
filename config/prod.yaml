@@ -35,6 +35,6 @@ database:
 
 redis:
   host: "cache"
-  port: "8090"
+  port: "6379"
   user: "valkeymanager"
   password: "redisforcloud"
