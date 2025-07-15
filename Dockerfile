@@ -15,7 +15,6 @@ FROM alpine:latest
 WORKDIR /app
 
 COPY --from=builder /app/config ./config
-COPY --from=buildeR /app/private ./private
 COPY --from=builder /app/binary .
 
 RUN chmod +x ./binary
