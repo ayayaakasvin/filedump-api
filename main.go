@@ -21,7 +21,7 @@ func main() {
 
 	shutdownChan := models.NewShutdownChannel()
 	go func() {
-		formattedLogger.Errorf("Error during setup: %s", shutdownChan.Value())
+		formattedLogger.Errorf("Error during setup: %s, %v", shutdownChan.Value(), cfg)
 		os.Exit(1)
 	}()
 
