@@ -27,7 +27,6 @@ func (m *Middlewares) RateLimitMiddleware(h http.HandlerFunc) http.HandlerFunc {
 		}
 
 		key := fmt.Sprintf(ratelimitformatstring, userId, ip)
-		m.logger.Info(key)
 		set := m.cache.SetNX(r.Context(), key, "1", expTimeForRateLimit);
 		if err := set.Err(); err != nil {
 			models.SendErrorJson(w, http.StatusInternalServerError, "cache error")

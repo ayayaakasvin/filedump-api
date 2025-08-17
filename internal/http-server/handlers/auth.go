@@ -37,7 +37,6 @@ func (h *Handlers) LogIn() http.HandlerFunc {
 			models.SendErrorJson(w, http.StatusBadRequest, "failed to bind request")
 			return
 		}
-		h.logger.Info(loginReq)
 
 		userId, err := h.userRepo.AuthentificateUser(r.Context(), loginReq.Username, loginReq.Password)
 		if err != nil {

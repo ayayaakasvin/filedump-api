@@ -86,20 +86,20 @@ func (h *Handlers) DownloadFile() http.HandlerFunc {
 			return
 		}
 
-		user_id := r.Context().Value(ctx.CtxUserIDKey).(int)
+		reqUserID := r.Context().Value(ctx.CtxUserIDKey).(int)
 
-		fileMeta, err := h.fileRepo.GetFileMeta(r.Context(), file_id, user_id)
+		fileMeta, err := h.fileRepo.GetFileMeta(r.Context(), file_id)
 		if err != nil {
 			switch err.Error() {
 			case postgresql.NotFound:
 				models.SendErrorJson(w, http.StatusNotFound, "file not found")
-			case postgresql.UnAuthorized:
-				models.SendErrorJson(w, http.StatusUnauthorized, "access denied")
 			default:
 				h.logger.Errorf("Failed to fetch file metadata: %v", err)
 				models.SendErrorJson(w, http.StatusInternalServerError, "failed to retrieve metadata")
 			}
 			return
+		} else if fileMeta.UserID != reqUserID {
+			models.SendErrorJson(w, http.StatusUnauthorized, "access denied")
 		}
 
 		if _, err := os.Stat(filepath.Join("./", fileMeta.FilePath)); os.IsNotExist(err) {
@@ -119,7 +119,7 @@ func (h *Handlers) DownloadFile() http.HandlerFunc {
 		w.Header().Set("Content-Type", mimeType)
 		w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", fileMeta.FileName))
 		w.Header().Set("Content-Transfer-Encoding", "binary") // Optional, helps in some clients
-		w.Header().Set("Cache-Control", "no-cache") // Optional
+		w.Header().Set("Cache-Control", "no-cache")           // Optional
 
 		http.ServeFile(w, r, fileMeta.FilePath)
 	}
@@ -152,31 +152,38 @@ func (h *Handlers) ListFile() http.HandlerFunc {
 // File delete handler, deletion via "file_id" param and further delete from db and etc
 func (h *Handlers) DeleteFile() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		userId := r.Context().Value(ctx.CtxUserIDKey).(int)
+		reqUserID := r.Context().Value(ctx.CtxUserIDKey).(int)
 
-		file_id := r.URL.Query().Get("file_id")
-		if file_id == "" {
+		fileuuid := r.URL.Query().Get("file_id")
+		if fileuuid == "" {
 			models.SendErrorJson(w, http.StatusBadRequest, "file_id is required")
 			return
 		}
 
-		if err := h.fileRepo.DeleteFileByUUID(r.Context(), file_id, userId); err != nil {
+		if filemeta, err := h.fileRepo.GetFileMeta(r.Context(), fileuuid); err != nil {
+			switch err.Error() {
+			case postgresql.NotFound:
+				models.SendErrorJson(w, http.StatusNotFound, "file not found")
+			default:
+				h.logger.Errorf("Failed to fetch file metadata: %v", err)
+				models.SendErrorJson(w, http.StatusInternalServerError, "failed to retrieve metadata")
+			}
+			return
+		} else if filemeta.UserID != reqUserID {
+			models.SendErrorJson(w, http.StatusUnauthorized, "access denied")
+			return 
+		}
+
+		if err := h.fileRepo.DeleteFileByUUID(r.Context(), fileuuid); err != nil {
 			h.logger.Errorf("Failed to delete record: %v", err)
 			models.SendErrorJson(w, http.StatusInternalServerError, "Failed to delete record")
 			return
 		}
 
-		pathToFile := path.Join(downloadDir, file_id)
+		pathToFile := path.Join(downloadDir, fileuuid)
 		if err := os.Remove(pathToFile); err != nil {
-			switch err.Error() {
-			case postgresql.NotFound:
-				models.SendErrorJson(w, http.StatusNotFound, "file not found")
-			case postgresql.UnAuthorized:
-				models.SendErrorJson(w, http.StatusUnauthorized, "access denied")
-			default:
-				h.logger.Errorf("Failed to delete file: %v", err)
-				models.SendErrorJson(w, http.StatusInternalServerError, "Failed to delete file")
-			}
+			h.logger.Errorf("Failed to delete file: %v", err)
+			models.SendErrorJson(w, http.StatusInternalServerError, "Failed to delete file")
 			return
 		}
 
@@ -187,31 +194,31 @@ func (h *Handlers) DeleteFile() http.HandlerFunc {
 // Just like Listing, but with solo data as FileMetaData JSON
 func (h *Handlers) GetFileMetaData() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		userId := r.Context().Value(ctx.CtxUserIDKey).(int)
+		reqUserID := r.Context().Value(ctx.CtxUserIDKey).(int)
 
-		file_id := r.URL.Query().Get("file_id")
-		if file_id == "" {
+		fileuuid := r.URL.Query().Get("file_id")
+		if fileuuid == "" {
 			models.SendErrorJson(w, http.StatusBadRequest, "file_id is required")
 			return
 		}
 
 		// call to db
-		metaData, err := h.fileRepo.GetFileMeta(r.Context(), file_id, userId)
+		filemeta, err := h.fileRepo.GetFileMeta(r.Context(), fileuuid)
 		if err != nil {
 			switch err.Error() {
 			case postgresql.NotFound:
 				models.SendErrorJson(w, http.StatusNotFound, "file not found")
-			case postgresql.UnAuthorized:
-				models.SendErrorJson(w, http.StatusUnauthorized, "access denied")
 			default:
 				h.logger.Errorf("Failed to fetch file metadata: %v", err)
 				models.SendErrorJson(w, http.StatusInternalServerError, "failed to retrieve metadata")
 			}
 			return
+		} else if filemeta.UserID != reqUserID {
+			models.SendErrorJson(w, http.StatusUnauthorized, "access denied")
 		}
 
 		data := models.NewData()
-		data["metadata"] = metaData
+		data["metadata"] = filemeta
 		models.SendSuccessJson(w, http.StatusOK, data)
 	}
 }
@@ -219,12 +226,26 @@ func (h *Handlers) GetFileMetaData() http.HandlerFunc {
 // Filename update handler, changing filename
 func (h *Handlers) UpdateFileName() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		userId := r.Context().Value(ctx.CtxUserIDKey).(int)
+		reqUserID := r.Context().Value(ctx.CtxUserIDKey).(int)
 
-		file_id := r.URL.Query().Get("file_id")
-		if file_id == "" {
+		fileuuid := r.URL.Query().Get("file_id")
+		if fileuuid == "" {
 			models.SendErrorJson(w, http.StatusBadRequest, "file_id is required")
 			return
+		}
+
+		if filemeta, err := h.fileRepo.GetFileMeta(r.Context(), fileuuid); err != nil {
+			switch err.Error() {
+			case postgresql.NotFound:
+				models.SendErrorJson(w, http.StatusNotFound, "file not found")
+			default:
+				h.logger.Errorf("Failed to fetch file metadata: %v", err)
+				models.SendErrorJson(w, http.StatusInternalServerError, "failed to retrieve metadata")
+			}
+			return
+		} else if filemeta.UserID != reqUserID {
+			models.SendErrorJson(w, http.StatusUnauthorized, "access denied")
+			return 
 		}
 
 		var updateReq dto.UpdateFileNameRequest
@@ -238,7 +259,7 @@ func (h *Handlers) UpdateFileName() http.HandlerFunc {
 			return
 		}
 
-		if err := h.fileRepo.RenameFileName(r.Context(), updateReq.Filename, file_id, userId); err != nil {
+		if err := h.fileRepo.RenameFileName(r.Context(), updateReq.Filename, fileuuid); err != nil {
 			switch err.Error() {
 			case postgresql.NotFound:
 				models.SendErrorJson(w, http.StatusNotFound, "file not found")

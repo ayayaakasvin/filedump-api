@@ -29,7 +29,7 @@ func (p *PostgreSQL) InsertFileName(ctx context.Context, file *models.FileMetaDa
 	return nil
 }
 
-func (p *PostgreSQL) DeleteFileByUUID(ctx context.Context, uuidOfFile string, userId int) error {
+func (p *PostgreSQL) DeleteFileByUUID(ctx context.Context, uuidOfFile string) error {
 	var ownerID int
 	err := p.conn.QueryRowContext(ctx,
 		`SELECT user_id FROM files WHERE file_uuid = $1`, uuidOfFile).Scan(&ownerID)
@@ -41,17 +41,13 @@ func (p *PostgreSQL) DeleteFileByUUID(ctx context.Context, uuidOfFile string, us
 		return err
 	}
 
-	if ownerID != userId {
-		return errors.New(UnAuthorized) // 401
-	}
-
-	stmt, err := p.conn.PrepareContext(ctx, `DELETE FROM files WHERE file_uuid = $1 AND user_id = $2`)
+	stmt, err := p.conn.PrepareContext(ctx, `DELETE FROM files WHERE file_uuid = $1`)
 	if err != nil {
 		return err // 500
 	}
 	defer stmt.Close()
 
-	_, err = stmt.ExecContext(ctx, uuidOfFile, userId)
+	_, err = stmt.ExecContext(ctx, uuidOfFile)
 	if err != nil {
 		return err // 500
 	}
@@ -59,7 +55,7 @@ func (p *PostgreSQL) DeleteFileByUUID(ctx context.Context, uuidOfFile string, us
 	return nil
 }
 
-func (p *PostgreSQL) GetFileMeta(ctx context.Context, uuidOfFile string, userId int) (*models.FileMetaData, error) {
+func (p *PostgreSQL) GetFileMeta(ctx context.Context, uuidOfFile string) (*models.FileMetaData, error) {
 	stmt, err := p.conn.PrepareContext(ctx, `SELECT file_uuid, filename, filepath, uploaded_at, size, mime_type, user_id FROM files WHERE file_uuid = $1 LIMIT 1`)
 	if err != nil {
 		return nil, err // 500
@@ -81,10 +77,6 @@ func (p *PostgreSQL) GetFileMeta(ctx context.Context, uuidOfFile string, userId 
 			return nil, errors.New(NotFound) // 404
 		}
 		return nil, err // 500
-	}
-
-	if metadata.UserID != userId {
-		return nil, errors.New(UnAuthorized) // 401
 	}
 
 	return metadata, nil
@@ -178,7 +170,7 @@ func (p *PostgreSQL) GetUserRecords(ctx context.Context, userId int) ([]*models.
 	return result, nil
 }
 
-func (p *PostgreSQL) RenameFileName(ctx context.Context, updatedFilename, uuidOfFile string, userId int) error {
+func (p *PostgreSQL) RenameFileName(ctx context.Context, updatedFilename, uuidOfFile string) error {
 	var ownerID int
 	err := p.conn.QueryRowContext(ctx,
 		`SELECT user_id FROM files WHERE file_uuid = $1`, uuidOfFile).Scan(&ownerID)
@@ -190,17 +182,13 @@ func (p *PostgreSQL) RenameFileName(ctx context.Context, updatedFilename, uuidOf
 		return err // 500
 	}
 
-	if ownerID != userId {
-		return errors.New(UnAuthorized) // 401
-	}
-
-	stmt, err := p.conn.PrepareContext(ctx, `UPDATE files SET filename = $1 WHERE file_uuid = $2 AND user_id = $3`)
+	stmt, err := p.conn.PrepareContext(ctx, `UPDATE files SET filename = $1 WHERE file_uuid = $2`)
 	if err != nil {
 		return err // 500
 	}
 	defer stmt.Close()
 
-	_, err = stmt.ExecContext(ctx, updatedFilename, uuidOfFile, userId)
+	_, err = stmt.ExecContext(ctx, updatedFilename, uuidOfFile)
 	if err != nil {
 		return err // 500
 	}
