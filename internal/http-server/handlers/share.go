@@ -22,7 +22,7 @@ func (h *Handlers) CreateShareLink() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var slr dto.ShareLinkRequest
 		if err := bindjson.BindJson(r.Body, &slr); err != nil {
-			models.SendErrorJson(w, http.StatusBadRequest, "failed to bind request")
+			models.SendErrorJson(w, http.StatusBadRequest, "failed to bind request %s", err.Error())
 			return
 		}
 
