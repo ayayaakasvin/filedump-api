@@ -98,9 +98,8 @@ func (s *ServerApp) setupLightMux() {
 	// /api file GET | POST
 	apiGroup := s.lmux.NewGroup("/api", mws.JWTAuthMiddleware)
 	apiGroup.NewRoute("/upload", mws.RateLimitMiddleware).Handle(http.MethodPost, handlers.UploadFile())
-	downloadAPIRoute := apiGroup.NewRoute("/download", mws.RateLimitMiddleware)
-	downloadAPIRoute.Handle(http.MethodGet, handlers.DownloadFile())
-	downloadAPIRoute.Handle(http.MethodGet, handlers.DownloadFileViaSharedLink())
+	apiGroup.NewRoute("/download", mws.RateLimitMiddleware).Handle(http.MethodGet, handlers.DownloadFile())
+	apiGroup.NewRoute("/download/shared/", mws.RateLimitMiddleware).Handle(http.MethodGet, handlers.DownloadFileViaSharedLink())
 	apiGroup.NewRoute("/sharelink", mws.RateLimitMiddleware).Handle(http.MethodGet, handlers.CreateShareLink())
 
 	// /api/files metadata CRUD
