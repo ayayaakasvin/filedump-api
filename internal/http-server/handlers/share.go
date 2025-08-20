@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"up-down-server/internal/http-server/ctx"
 	"up-down-server/internal/lib/bindjson"
 	"up-down-server/internal/lib/linkgeneration"
@@ -15,6 +16,7 @@ import (
 )
 
 const shareLinkKey = "share link:%s"
+
 // Example: /download/shared/<hash>
 const prefix = "/download/shared/"
 
@@ -34,12 +36,12 @@ func (h *Handlers) CreateShareLink() http.HandlerFunc {
 				h.logger.WithError(err).Error("failed to get filemeta data")
 			}
 			models.SendErrorJson(w, http.StatusInternalServerError, "failed to get filemeta data")
-			return	
+			return
 		}
 
 		if filemeta.UserID != reqUserID {
 			models.SendErrorJson(w, http.StatusUnauthorized, "access denied")
-			return 
+			return
 		}
 
 		link, err := linkgeneration.GenerateRandomLink(slr.FileUUID, slr.Duration)
@@ -77,38 +79,38 @@ func (h *Handlers) CreateShareLink() http.HandlerFunc {
 
 func (h *Handlers) DownloadFileViaSharedLink() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if len(r.URL.Path) <= len(prefix) {
+		if !strings.HasPrefix(r.URL.Path, prefix) || len(r.URL.Path) <= len(prefix) {
 			http.NotFound(w, r)
 			return
 		}
-		hash := r.URL.Path[len(prefix):]
+		hash := strings.TrimPrefix(r.URL.Path, prefix)
 		h.logger.Info("link", hash)
-		
+
 		var fileuuid string
 		if fileuuidAny, err := h.cache.Get(r.Context(), fmt.Sprintf(shareLinkKey, hash)); err != nil {
 			models.SendErrorJson(w, http.StatusNotFound, "no such link available")
-			return 
+			return
 		} else {
 			fileuuid = fileuuidAny.(string)
 		}
 
 		if fileuuid == "" {
 			models.SendErrorJson(w, http.StatusInternalServerError, "internal error")
-			return 
+			return
 		}
 
 		filemeta, err := h.fileRepo.GetFileMeta(r.Context(), fileuuid)
 		if err != nil {
 			switch err.Error() {
 			case postgresql.NotFound:
-				models.SendErrorJson(w, http.StatusNotFound, "no such file") 
+				models.SendErrorJson(w, http.StatusNotFound, "no such file")
 			default:
 				models.SendErrorJson(w, http.StatusInternalServerError, "failed to get filemeta data")
 			}
 
 			return
 		}
-		
+
 		if _, err := os.Stat(filepath.Join("./", filemeta.FilePath)); os.IsNotExist(err) {
 			models.SendErrorJson(w, http.StatusNotFound, "file not found")
 			return
