@@ -82,6 +82,7 @@ func (h *Handlers) DownloadFileViaSharedLink() http.HandlerFunc {
 			return
 		}
 		hash := r.URL.Path[len(prefix):]
+		h.logger.Info("link", hash)
 		
 		var fileuuid string
 		if fileuuidAny, err := h.cache.Get(r.Context(), fmt.Sprintf(shareLinkKey, hash)); err != nil {
