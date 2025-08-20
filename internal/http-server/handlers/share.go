@@ -18,7 +18,7 @@ import (
 const shareLinkKey = "share link:%s"
 
 // Example: /download/shared/<hash>
-const prefix = "/download/shared/"
+const prefix = "/api/download/shared/"
 
 func (h *Handlers) CreateShareLink() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
